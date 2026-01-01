@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Agent HUD - Web dashboard for managing Claude Code agents -->
+    <!-- Runs on port 7680 at startup -->
+
+    <key>Label</key>
+    <string>com.claude.agent-hud</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Update this path to your npm location (run: which npm) -->
+        <string>/opt/homebrew/bin/npm</string>
+        <string>run</string>
+        <string>dev</string>
+        <string>--</string>
+        <string>-p</string>
+        <string>7680</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <!-- Update this to where you cloned/installed the hud/ directory -->
+    <string>/Users/YOUR_USERNAME/agent-hud</string>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/.claude/logs/agent-hud.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/.claude/logs/agent-hud.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

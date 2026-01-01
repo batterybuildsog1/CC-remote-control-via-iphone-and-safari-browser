@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Caffeinate - Keeps Mac awake for long-running agent tasks -->
+    <!-- -d: prevent display sleep -->
+    <!-- -i: prevent idle sleep -->
+    <!-- -s: prevent system sleep (even on AC power) -->
+
+    <key>Label</key>
+    <string>com.claude.caffeinate</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/caffeinate</string>
+        <string>-d</string>
+        <string>-i</string>
+        <string>-s</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+</dict>
+</plist>

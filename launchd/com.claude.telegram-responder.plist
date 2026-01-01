@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Telegram Responder - Polls Telegram for replies and routes to agents -->
+    <!-- Enables remote control via Telegram messages -->
+
+    <key>Label</key>
+    <string>com.claude.telegram-responder</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Update this path to your python3 location (run: which python3) -->
+        <string>/opt/homebrew/bin/python3</string>
+        <string>/Users/YOUR_USERNAME/.claude/scripts/telegram-responder.py</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/.claude/logs/telegram-responder.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/.claude/logs/telegram-responder.err</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+
+        <!-- REQUIRED: Get these from @BotFather on Telegram -->
+        <key>TELEGRAM_BOT_TOKEN</key>
+        <string>YOUR_BOT_TOKEN_HERE</string>
+
+        <!-- REQUIRED: Your Telegram chat ID (message @userinfobot to get this) -->
+        <key>TELEGRAM_CHAT_ID</key>
+        <string>YOUR_CHAT_ID_HERE</string>
+    </dict>
+</dict>
+</plist>
