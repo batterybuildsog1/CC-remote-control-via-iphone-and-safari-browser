@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TerminalEmbed } from './TerminalEmbed';
+import Link from 'next/link';
 
 interface Agent {
   id: string;
@@ -25,7 +25,6 @@ export const AgentDashboard = () => {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tailscaleIP, setTailscaleIP] = useState('localhost');
   const [isPolling, setIsPolling] = useState(true);
-  const [activeTerminal, setActiveTerminal] = useState<Agent | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [newAgentName, setNewAgentName] = useState('');
   const [newAgentWorkdir, setNewAgentWorkdir] = useState(COMMON_WORKDIRS[0].path);
@@ -106,9 +105,6 @@ export const AgentDashboard = () => {
 
       if (res.ok) {
         await fetchAgents();
-        if (activeTerminal?.port === port) {
-          setActiveTerminal(null);
-        }
       }
     } catch (error) {
       console.error('Failed to stop agent:', error);
@@ -232,13 +228,19 @@ export const AgentDashboard = () => {
                   >
                     Stop
                   </button>
+                  <Link
+                    href={`/agent/${agent.port}`}
+                    className="text-xs text-green-400 hover:text-green-300 px-2 py-1 rounded hover:bg-green-500/10 transition-colors"
+                  >
+                    Control
+                  </Link>
                   <a
                     href={agent.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs text-blue-400 hover:text-blue-300 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors"
                   >
-                    Open →
+                    Terminal →
                   </a>
                 </div>
               </div>
@@ -322,14 +324,6 @@ export const AgentDashboard = () => {
         </div>
       )}
 
-      {/* Terminal overlay */}
-      {activeTerminal && (
-        <TerminalEmbed
-          port={activeTerminal.port}
-          name={activeTerminal.name}
-          onClose={() => setActiveTerminal(null)}
-        />
-      )}
     </div>
   );
 };

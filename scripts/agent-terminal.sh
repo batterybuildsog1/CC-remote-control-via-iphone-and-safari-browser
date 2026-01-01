@@ -14,12 +14,14 @@
 #   agent-terminal.sh responder stop             # Stop Telegram responder daemon
 
 AGENT_STATE_DIR="$HOME/.claude/agent-terminals"
+AGENT_LOGS_DIR="$HOME/.claude/agent-logs"
 RESPONDER_PID_FILE="$HOME/.claude/telegram-responder.pid"
 HUD_PORT=7680
 BASE_PORT=7681
 DEFAULT_WORKDIR="$HOME/Money_heaven"
 
 mkdir -p "$AGENT_STATE_DIR"
+mkdir -p "$AGENT_LOGS_DIR"
 
 # Get Tailscale IP dynamically
 get_tailscale_ip() {
@@ -94,6 +96,9 @@ start_agent() {
         }
     fi
 
+    # Create log file path
+    local log_file="$AGENT_LOGS_DIR/$port.log"
+
     # Create state file
     cat > "$AGENT_STATE_DIR/$port.json" << EOF
 {
@@ -104,6 +109,7 @@ start_agent() {
     "session_name": "$session_name",
     "started": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
     "ttyd_pid": null,
+    "log_file": "$log_file",
     "is_worktree": $([ "$worktree_path" != "$workdir" ] && echo "true" || echo "false")
 }
 EOF
@@ -112,11 +118,17 @@ EOF
 
     # Start tmux session with Claude Code
     # Set AGENT_PORT so hooks can identify which agent needs input
+    # Enable mouse mode for potential touch scrolling
     tmux new-session -d -s "$session_name" -c "$worktree_path" \
         "export AGENT_PORT=$port; echo '🤖 Agent: $name'; echo 'Port: $port'; echo 'Working in: $worktree_path'; echo ''; echo 'Reply via Telegram: @$port <response>'; echo ''; claude"
 
     # Give tmux a moment to start
     sleep 1
+
+    # Enable output logging via pipe-pane for the control panel
+    # This streams all output to a log file that can be read by the HUD
+    : > "$log_file"  # Create/truncate log file
+    tmux pipe-pane -t "$session_name" -o "cat >> '$log_file'"
 
     # Start shellinabox attached to the tmux session
     # Using shellinabox instead of ttyd because Safari has WebSocket compression bugs
@@ -209,6 +221,7 @@ list_agents() {
 cleanup_agent() {
     local port="$1"
     local state_file="$AGENT_STATE_DIR/$port.json"
+    local log_file="$AGENT_LOGS_DIR/$port.log"
 
     if [ -f "$state_file" ]; then
         local is_worktree=$(jq -r '.is_worktree' "$state_file" 2>/dev/null)
@@ -222,6 +235,7 @@ cleanup_agent() {
         fi
 
         rm -f "$state_file"
+        rm -f "$log_file"
     fi
 }
 
@@ -284,6 +298,86 @@ send_to_agent() {
     # Send keys to tmux session
     tmux send-keys -t "$session_name" "$text" Enter
     echo -e "${GREEN}Sent to agent $port: $text${NC}"
+}
+
+send_key_to_agent() {
+    local port="$1"
+    local key="$2"
+    local session_name=$(get_session_name $port)
+
+    if [ -z "$port" ] || [ -z "$key" ]; then
+        echo "Usage: agent-terminal.sh key <port> <key>"
+        echo ""
+        echo "Available keys:"
+        echo "  esc, escape    - Send Escape key"
+        echo "  ctrl-b, C-b    - Send Ctrl-B (tmux prefix)"
+        echo "  ctrl-c, C-c    - Send Ctrl-C (interrupt)"
+        echo "  enter          - Send Enter key"
+        echo "  up, down       - Send arrow keys"
+        echo "  left, right    - Send arrow keys"
+        exit 1
+    fi
+
+    if ! tmux has-session -t "$session_name" 2>/dev/null; then
+        echo -e "${RED}No agent session found for port $port${NC}"
+        exit 1
+    fi
+
+    # Map key names to tmux key codes
+    local tmux_key=""
+    case "${key,,}" in  # lowercase the key
+        esc|escape)
+            tmux_key="Escape"
+            ;;
+        ctrl-b|c-b|ctrlb)
+            tmux_key="C-b"
+            ;;
+        ctrl-c|c-c|ctrlc)
+            tmux_key="C-c"
+            ;;
+        enter|return)
+            tmux_key="Enter"
+            ;;
+        up)
+            tmux_key="Up"
+            ;;
+        down)
+            tmux_key="Down"
+            ;;
+        left)
+            tmux_key="Left"
+            ;;
+        right)
+            tmux_key="Right"
+            ;;
+        *)
+            echo -e "${RED}Unknown key: $key${NC}"
+            echo "Use 'agent-terminal.sh key' to see available keys"
+            exit 1
+            ;;
+    esac
+
+    # Send the key (without Enter)
+    tmux send-keys -t "$session_name" "$tmux_key"
+    echo -e "${GREEN}Sent key to agent $port: $key${NC}"
+}
+
+get_agent_log() {
+    local port="$1"
+    local lines="${2:-100}"
+    local log_file="$AGENT_LOGS_DIR/$port.log"
+
+    if [ -z "$port" ]; then
+        echo "Usage: agent-terminal.sh log <port> [lines]"
+        exit 1
+    fi
+
+    if [ ! -f "$log_file" ]; then
+        echo -e "${RED}No log file found for port $port${NC}"
+        exit 1
+    fi
+
+    tail -n "$lines" "$log_file"
 }
 
 start_responder() {
@@ -386,6 +480,12 @@ case "$1" in
     send)
         send_to_agent "$2" "$3"
         ;;
+    key)
+        send_key_to_agent "$2" "$3"
+        ;;
+    log)
+        get_agent_log "$2" "$3"
+        ;;
     merge)
         merge_agent "$2"
         ;;
@@ -410,9 +510,14 @@ case "$1" in
         echo "  agent-terminal.sh list                     - List running agents"
         echo "  agent-terminal.sh stop [port|all]          - Stop agent(s)"
         echo "  agent-terminal.sh send <port> <text>       - Send input to agent"
+        echo "  agent-terminal.sh key <port> <key>         - Send special key (esc, ctrl-b, etc.)"
+        echo "  agent-terminal.sh log <port> [lines]       - View agent output log"
         echo "  agent-terminal.sh merge <port>             - Merge agent's work into main"
         echo "  agent-terminal.sh responder start          - Start Telegram responder daemon"
         echo "  agent-terminal.sh responder stop           - Stop Telegram responder daemon"
+        echo ""
+        echo "Special keys for 'key' command:"
+        echo "  esc, ctrl-b, ctrl-c, enter, up, down, left, right"
         echo ""
         echo "Telegram commands (when responder is running):"
         echo "  @7681 y                                    - Send 'y' to agent on port 7681"
@@ -422,6 +527,9 @@ case "$1" in
         echo "  agent-terminal.sh start \"Fix photo enrichment\""
         echo "  agent-terminal.sh start \"USDA display bug\" 7682"
         echo "  agent-terminal.sh send 7681 \"y\""
+        echo "  agent-terminal.sh key 7681 esc"
+        echo "  agent-terminal.sh key 7681 ctrl-b"
+        echo "  agent-terminal.sh log 7681 50"
         echo "  agent-terminal.sh merge 7681"
         echo "  agent-terminal.sh stop all"
         ;;
